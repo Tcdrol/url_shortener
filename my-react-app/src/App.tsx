@@ -11,9 +11,14 @@ function App() {
       
       <h1>THIS IS SUPPOSED TO BE AN URL SHORTNER 
       on the Vite and React logos to learn more add math</h1>
+
+<h2>THIS IS SUPPOSED TO BE AN URL SHORTNER 
+on the Vite and React logos to learn more add math</h2>
+
       
     
   )
 }
 
 export default App
+
