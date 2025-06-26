@@ -10,7 +10,7 @@ function App() {
   
       
       <h1>THIS IS SUPPOSED TO BE AN URL SHORTNER 
-      on the Vite and React logos to learn more</h1>
+      on the Vite and React logos to learn more add math</h1>
       
     
   )
