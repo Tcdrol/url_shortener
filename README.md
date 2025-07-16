@@ -1,69 +1,112 @@
-# React + TypeScript + Vite
+# URL Shortener
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A full-stack URL shortener application built with React, TypeScript, Express, and MongoDB.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Create short URLs from long URLs
+- Redirect to original URLs from short codes
+- View URL statistics (clicks, last accessed)
+- Responsive design for all devices
+- Modern tech stack with type safety
 
-## Expanding the ESLint configuration
+## Tech Stack
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- **Frontend**: React 18, TypeScript, Vite, Tailwind CSS
+- **Backend**: Node.js, Express, TypeScript
+- **Database**: MongoDB with Mongoose ODM
+- **Build Tools**: Vite, TypeScript, ESLint, Prettier
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Prerequisites
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+- Node.js 18.0.0 or higher
+- npm 9.0.0 or higher
+- MongoDB (local or Atlas)
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Getting Started
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/url-shortener.git
+   cd url-shortener
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Set up environment variables**
+   - Copy `.env.example` to `.env`
+   - Update the environment variables in `.env` as needed
+
+4. **Start the development server**
+   ```bash
+   # Start both frontend and backend in development mode
+   npm run dev
+   ```
+
+5. **Build for production**
+   ```bash
+   # Build both frontend and backend
+   npm run build
+   
+   # Start production server
+   npm start
+   ```
+
+## Environment Variables
+
+Create a `.env` file in the root directory and add the following variables:
+
+```
+# Server
+PORT=5000
+MONGODB_URI=mongodb://localhost:27017/url-shortener
+
+# Client
+VITE_API_URL=http://localhost:5000/api
+
+# Set to 'production' in production
+NODE_ENV=development
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Project Structure
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+```
+url-shortener/
+├── client/               # Frontend React application
+├── server/               # Backend Express application
+│   ├── controllers/      # Request handlers
+│   ├── middleware/       # Express middleware
+│   ├── models/           # MongoDB models
+│   ├── routes/           # API routes
+│   └── index.ts          # Server entry point
+├── .env.example         # Example environment variables
+├── package.json         # Project dependencies and scripts
+├── tsconfig.json        # TypeScript configuration
+└── README.md            # Project documentation
+```
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Available Scripts
+
+- `npm run dev` - Start development server (both frontend and backend)
+- `npm run client` - Start frontend development server
+- `npm run server` - Start backend development server
+- `npm run build` - Build both frontend and backend for production
+- `npm start` - Start production server
+- `npm run lint` - Run ESLint
+- `npm run lint:fix` - Fix ESLint issues
+- `npm run type-check` - Check TypeScript types
+
+## API Endpoints
+
+- `POST /api/shorturl` - Create a new short URL
+- `GET /api/shorturl` - Get all URLs
+- `GET /:shortCode` - Redirect to original URL
+- `GET /api/shorturl/:shortCode/stats` - Get URL statistics
+
+## License
+
+MIT
 ```
