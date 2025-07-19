@@ -37,6 +37,16 @@ interface IRequest extends Request {
   };
 }
 
+// Type guard to check if a value is an IUrlDocument
+const isUrlDocument = (value: unknown): value is IUrlDocument => {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    'originalUrl' in value &&
+    'shortCode' in value
+  );
+};
+
 // Generate cache key for URL
 const getCacheKey = (shortCode: string, includeStats = false): string => {
   return includeStats ? `url:stats:${shortCode}` : `url:${shortCode}`;
@@ -176,7 +186,7 @@ export const redirectToOriginalUrl = async (req: IRequest, res: Response, next: 
     
     if (!cachedUrl) {
       // Not in cache, fetch from database
-      url = await ShortUrl.findOneAndUpdate(
+      const result = await ShortUrl.findOneAndUpdate(
         { 
           shortCode, 
           isActive: true,
@@ -200,12 +210,13 @@ export const redirectToOriginalUrl = async (req: IRequest, res: Response, next: 
         { new: true }
       ).exec();
 
-      if (!url) {
+      if (!result) {
         return next(AppError.notFound('No active URL found with that code'));
       }
 
+      url = result;
       // Cache the URL
-      urlCache.set(cacheKey, url);
+      urlCache.set(cacheKey, result);
     } else {
       // Update analytics in the background
       ShortUrl.findByIdAndUpdate(
@@ -227,10 +238,14 @@ export const redirectToOriginalUrl = async (req: IRequest, res: Response, next: 
       });
     }
 
+    if (!url) {
+      return next(AppError.notFound('URL not found'));
+    }
+
     // Track the redirect
     res.redirect(302, url.originalUrl);
   } catch (err) {
-    next(AppError.internal('Failed to process redirect', err));
+    next(AppError.internal('Failed to process redirect', err as Error));
   }
 };
 
@@ -408,16 +423,26 @@ const formatUrlResponse = (url: IUrlDocument, req: IRequest): FormattedUrlRespon
 };
 
 // Helper function to get analytics counts
-const getAnalyticsCounts = (analytics: any[], field: string) => {
+interface IAnalytics {
+  timestamp: Date;
+  ip: string;
+  userAgent: string;
+  referrer: string;
+}
+
+const getAnalyticsCounts = (
+  analytics: IAnalytics[] = [], 
+  field: keyof IAnalytics
+): Array<{ name: string; count: number }> => {
   const counts: Record<string, number> = {};
   
-  analytics.forEach((item) => {
-    const value = item[field] || 'Unknown';
+  analytics.forEach(item => {
+    const value = item[field]?.toString() || 'Unknown';
     counts[value] = (counts[value] || 0) + 1;
   });
   
   return Object.entries(counts)
-    .map(([key, value]) => ({ [field === 'userAgent' ? 'browser' : field]: key, count: value }))
+    .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count);
 };
 

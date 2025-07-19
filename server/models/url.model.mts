@@ -6,6 +6,15 @@ const ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
 const nanoid = customAlphabet(ALPHABET, 8);
 
 // Interface for the URL document
+export interface IAnalytics {
+  timestamp: Date;
+  ip?: string;
+  userAgent?: string;
+  referrer?: string;
+  deviceType?: string;
+  isBot?: boolean;
+}
+
 export interface IUrl {
   originalUrl: string;
   shortCode: string;
@@ -19,6 +28,7 @@ export interface IUrl {
     description?: string;
     tags?: string[];
   };
+  analytics?: IAnalytics[];
   createdAt: Date;
   updatedAt: Date;
 }
