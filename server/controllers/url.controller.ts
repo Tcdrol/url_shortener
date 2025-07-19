@@ -2,13 +2,10 @@ import { Request, Response, NextFunction } from 'express';
 import { validationResult } from 'express-validator';
 import { Types } from 'mongoose';
 import NodeCache from 'node-cache';
-import { parse } from 'url';
-import validator from 'validator';
-import { promisify } from 'util';
 import { getTitleFromUrl } from '../utils/urlUtils';
 import ShortUrl, { IUrlDocument } from '../models/url.model';
 import AppError from '../utils/appError';
-import { getClientIp } from '../utils/requestUtils';
+import { getClientIp, getBaseUrl } from '../utils/requestUtils';
 
 // Initialize cache with 5 minute TTL and check for expired items every 10 minutes
 const urlCache = new NodeCache({ 
@@ -78,7 +75,7 @@ export const createShortUrl = async (req: IRequest, res: Response, next: NextFun
         { expiresAt: { $exists: false } },
         { expiresAt: { $gt: new Date() } },
       ],
-    });
+    }).exec();
 
     if (existingUrl) {
       return res.status(200).json({
@@ -121,25 +118,27 @@ export const createShortUrl = async (req: IRequest, res: Response, next: NextFun
     // Fetch page title in the background
     if (!title) {
       getTitleFromUrl(originalUrl)
-        .then(async (pageTitle) => {
+        .then(async (pageTitle: string | null) => {
           if (pageTitle) {
             await ShortUrl.findByIdAndUpdate(url._id, {
               'metadata.title': pageTitle,
-            });
+            }).exec();
           }
         })
-        .catch(console.error);
+        .catch((err: Error) => {
+          console.error('Error fetching page title:', err);
+        });
     }
 
     res.status(201).json({
       status: 'success',
       data: formatUrlResponse(url, req),
     });
-  } catch (err) {
+  } catch (err: any) {
     if (err.code === 11000) {
-      return next(new AppError('This short code is already in use', 400));
+      return next(AppError.conflict('This short code is already in use'));
     }
-    next(err);
+    next(AppError.internal('Failed to create short URL', err));
   }
 };
 
@@ -147,6 +146,10 @@ export const createShortUrl = async (req: IRequest, res: Response, next: NextFun
 export const redirectToOriginalUrl = async (req: IRequest, res: Response, next: NextFunction) => {
   try {
     const { shortCode } = req.params;
+    if (!shortCode) {
+      return next(AppError.badRequest('Short code is required'));
+    }
+
     const cacheKey = getCacheKey(shortCode);
     const ip = getClientIp(req);
     const userAgent = req.get('user-agent') || '';
@@ -181,10 +184,10 @@ export const redirectToOriginalUrl = async (req: IRequest, res: Response, next: 
           },
         },
         { new: true }
-      );
+      ).exec();
 
       if (!url) {
-        return next(new AppError('No active URL found with that code', 404));
+        return next(AppError.notFound('No active URL found with that code'));
       }
 
       // Cache the URL
@@ -205,13 +208,15 @@ export const redirectToOriginalUrl = async (req: IRequest, res: Response, next: 
             },
           },
         }
-      ).catch(console.error);
+      ).catch((err: Error) => {
+        console.error('Error updating URL analytics:', err);
+      });
     }
 
     // Track the redirect
     res.redirect(302, url.originalUrl);
   } catch (err) {
-    next(err);
+    next(AppError.internal('Failed to process redirect', err));
   }
 };
 
@@ -355,7 +360,7 @@ export const deleteUrl = async (req: IRequest, res: Response, next: NextFunction
 
 // Helper function to format URL response
 const formatUrlResponse = (url: IUrlDocument, req: IRequest) => {
-  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  const baseUrl = getBaseUrl(req);
   
   return {
     id: url._id,
