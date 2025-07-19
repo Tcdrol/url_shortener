@@ -1,11 +1,11 @@
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { validationResult } from 'express-validator';
 import { Types } from 'mongoose';
 import NodeCache from 'node-cache';
-import { getTitleFromUrl } from '../utils/urlUtils';
-import ShortUrl, { IUrlDocument } from '../models/url.model';
-import AppError from '../utils/appError';
-import { getClientIp, getBaseUrl } from '../utils/requestUtils';
+import { getTitleFromUrl } from '../utils/urlUtils.mts';
+import ShortUrl, { type IUrlDocument } from '../models/url.model.mts';
+import AppError from '../utils/appError.mts';
+import { getClientIp, getBaseUrl } from '../utils/requestUtils.mts';
 
 // Initialize cache with 5 minute TTL and check for expired items every 10 minutes
 const urlCache = new NodeCache({ 
@@ -42,14 +42,14 @@ const getCacheKey = (shortCode: string, includeStats = false): string => {
   return includeStats ? `url:stats:${shortCode}` : `url:${shortCode}`;
 };
 
-// Validate URL format
-const isValidUrl = (url: string): boolean => {
-  return validator.isURL(url, {
-    protocols: ['http', 'https'],
-    require_protocol: true,
-    require_valid_protocol: true,
-    allow_underscores: true,
-  });
+// Validate URL format using URL constructor - exported for testing
+export const isValidUrl = (url: string): boolean => {
+  try {
+    new URL(url);
+    return url.startsWith('http://') || url.startsWith('https://');
+  } catch (e) {
+    return false;
+  }
 };
 
 // Create a short URL
@@ -69,7 +69,7 @@ export const createShortUrl = async (req: IRequest, res: Response, next: NextFun
     // Check if URL already exists for this user
     const existingUrl = await ShortUrl.findOne({
       originalUrl,
-      ...(userId && { userId }),
+      ...(userId ? { userId } : {}),
       isActive: true,
       $or: [
         { expiresAt: { $exists: false } },
@@ -85,10 +85,24 @@ export const createShortUrl = async (req: IRequest, res: Response, next: NextFun
     }
 
     // Prepare URL data
-    const urlData: any = {
+    const urlData: {
+      originalUrl: string;
+      userId?: Types.ObjectId;
+      shortCode?: string;
+      expiresAt?: Date;
+      metadata: {
+        title?: string;
+        description?: string;
+        tags?: string[];
+      };
+    } = {
       originalUrl,
       userId,
-      metadata: { title, description, tags: tags?.filter(Boolean) },
+      metadata: { 
+        title, 
+        description, 
+        ...(tags ? { tags: tags.filter(Boolean) } : {}) 
+      },
     };
 
     // Set custom short code if provided
@@ -359,7 +373,24 @@ export const deleteUrl = async (req: IRequest, res: Response, next: NextFunction
 };
 
 // Helper function to format URL response
-const formatUrlResponse = (url: IUrlDocument, req: IRequest) => {
+type FormattedUrlResponse = {
+  id: Types.ObjectId;
+  originalUrl: string;
+  shortUrl: string;
+  shortCode: string;
+  clicks: number;
+  lastAccessed?: Date;
+  createdAt: Date;
+  expiresAt?: Date;
+  isActive: boolean;
+  metadata: {
+    title?: string;
+    description?: string;
+    tags?: string[];
+  };
+};
+
+const formatUrlResponse = (url: IUrlDocument, req: IRequest): FormattedUrlResponse => {
   const baseUrl = getBaseUrl(req);
   
   return {
@@ -391,20 +422,16 @@ const getAnalyticsCounts = (analytics: any[], field: string) => {
 };
 
 // Get all URLs
-export const getAllUrls = async (req: Request, res: Response, next: NextFunction) => {
+export const getAllUrls = async (req: IRequest, res: Response, next: NextFunction) => {
   try {
-    const urls = await ShortUrl.find().sort({ createdAt: -1 });
+    const urls = await ShortUrl.find({ isActive: true }).exec();
 
     res.status(200).json({
       status: 'success',
       results: urls.length,
-      data: urls.map((url: IUrlDocument) => ({
-        originalUrl: url.originalUrl,
-        shortUrl: url.shortCode,
-        clicks: url.clicks,
-        lastAccessed: url.lastAccessed,
-        createdAt: url.createdAt,
-      })),
+      data: {
+        urls: urls.map((url: IUrlDocument) => formatUrlResponse(url, req)),
+      },
     });
   } catch (err) {
     next(err);
